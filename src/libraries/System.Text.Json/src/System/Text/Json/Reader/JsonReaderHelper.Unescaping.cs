@@ -66,6 +66,48 @@ namespace System.Text.Json
             return utf8String;
         }
 
+        public static bool TryGetUnescapedString(ReadOnlySpan<byte> utf8Source, Span<char> transcodedValue, int idx, out int written)
+        {
+            byte[]? pooledName = null;
+
+            scoped ReadOnlySpan<byte> utf8UnescapedSource;
+            int writtenUnescaped = 0;
+
+            if (idx >= 0)
+            {
+                // The escaped name is always >= than the unescaped, so it is safe to use escaped name for the buffer length.
+                int length = utf8Source.Length;
+
+                Span<byte> utf8Unescaped = length <= JsonConstants.StackallocByteThreshold ?
+                    stackalloc byte[JsonConstants.StackallocByteThreshold] :
+                    (pooledName = ArrayPool<byte>.Shared.Rent(length));
+
+                Unescape(utf8Source, utf8Unescaped, out writtenUnescaped);
+                Debug.Assert(writtenUnescaped > 0);
+
+                utf8UnescapedSource = utf8Unescaped.Slice(0, writtenUnescaped);
+                Debug.Assert(!utf8Unescaped.IsEmpty);
+            }
+            else
+            {
+                utf8UnescapedSource = utf8Source;
+            }
+
+            written = TranscodeHelper(utf8UnescapedSource, transcodedValue);
+            ReturnPooledName(pooledName, writtenUnescaped);
+
+            return true;
+
+            static void ReturnPooledName(byte[]? pooledName, int written)
+            {
+                if (pooledName != null)
+                {
+                    pooledName.AsSpan(0, written).Clear();
+                    ArrayPool<byte>.Shared.Return(pooledName);
+                }
+            }
+        }
+
         public static ReadOnlySpan<byte> GetUnescapedSpan(ReadOnlySpan<byte> utf8Source)
         {
             // The escaped name is always >= than the unescaped, so it is safe to use escaped name for the buffer length.
@@ -476,7 +518,7 @@ namespace System.Text.Json
         /// <summary>
         /// Used when writing to buffers not guaranteed to fit the unescaped result.
         /// </summary>
-        private static bool TryUnescape(ReadOnlySpan<byte> source, Span<byte> destination, int idx, out int written)
+        internal static bool TryUnescape(ReadOnlySpan<byte> source, Span<byte> destination, int idx, out int written)
         {
             Debug.Assert(idx >= 0 && idx < source.Length);
             Debug.Assert(source[idx] == JsonConstants.BackSlash);
