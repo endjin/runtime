@@ -66,7 +66,7 @@ namespace System.Runtime.InteropServices
         /// If unescaping is required, you can create an appropriately sized UTF8 byte buffer, and pass these to <see cref="TryUnescapeRawUtf8Value(JsonElement, Span{byte}, int, out int)"/> to unescape the value.
         /// </para>
         /// </remarks>
-        public static bool Utf8ValueRequiresUnescaping(JsonElement element, out int indexOfFirstEscapedSequence, out int minimumUnescapedBufferSize)
+        public static bool RawUtf8ValueRequiresUnescaping(JsonElement element, out int indexOfFirstEscapedSequence, out int minimumUnescapedBufferSize)
         {
             if (element.ValueIsEscaped)
             {
@@ -169,7 +169,7 @@ namespace System.Runtime.InteropServices
         /// If unescaping is required, you can create an appropriately sized UTF8 byte buffer, and pass these to <see cref="TryUnescapeRawUtf8PropertyName(JsonProperty, Span{byte}, int, out int)"/> to unescape the value.
         /// </para>
         /// </remarks>
-        public static bool Utf8PropertyNameRequiresUnescaping(JsonProperty property, out int indexOfFirstEscapedSequence, out int minimumUnescapedBufferSize)
+        public static bool RawUtf8PropertyNameRequiresUnescaping(JsonProperty property, out int indexOfFirstEscapedSequence, out int minimumUnescapedBufferSize)
         {
             if (property.NameIsEscaped)
             {
@@ -197,6 +197,12 @@ namespace System.Runtime.InteropServices
         /// <returns><see langword="true"/> if the name was successfully unescaped.</returns>
         public static bool TryUnescapeRawUtf8PropertyName(JsonProperty property, Span<byte> unescapedValue, int indexOfFirstEscapedSequence, out int written)
         {
+            if (indexOfFirstEscapedSequence < 0)
+            {
+                written = 0;
+                return false;
+            }
+
             return JsonReaderHelper.TryUnescape(property.NameSpan, unescapedValue, indexOfFirstEscapedSequence, out written);
         }
 

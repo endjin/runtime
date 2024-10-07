@@ -93,10 +93,15 @@ namespace System.Text.Json
                 utf8UnescapedSource = utf8Source;
             }
 
-            written = TranscodeHelper(utf8UnescapedSource, transcodedValue);
-            ReturnPooledName(pooledName, writtenUnescaped);
-
-            return true;
+            try
+            {
+                bool result = TryTranscode(utf8UnescapedSource, transcodedValue, out written);
+                return true;
+            }
+            finally
+            {
+                ReturnPooledName(pooledName, writtenUnescaped);
+            }
 
             static void ReturnPooledName(byte[]? pooledName, int written)
             {
@@ -323,8 +328,63 @@ namespace System.Text.Json
             }
         }
 
+        public static bool TryTranscode(ReadOnlySpan<byte> utf8Unescaped, Span<char> destination, out int written)
+        {
+            try
+            {
+#if NET
+                written = s_utf8Encoding.GetChars(utf8Unescaped, destination);
+                return true;
+#else
+                if (utf8Unescaped.IsEmpty)
+                {
+                    written = 0;
+                    return false;
+                }
+                unsafe
+                {
+                    fixed (byte* srcPtr = utf8Unescaped)
+                    fixed (char* destPtr = destination)
+                    {
+                        written = s_utf8Encoding.GetChars(srcPtr, utf8Unescaped.Length, destPtr, destination.Length);
+                        return true;
+                    }
+                }
+#endif
+            }
+            catch (DecoderFallbackException dfe)
+            {
+                // We want to be consistent with the exception being thrown
+                // so the user only has to catch a single exception.
+                // Since we already throw InvalidOperationException for mismatch token type,
+                // and while unescaping, using that exception for failure to decode invalid UTF-8 bytes as well.
+                // Therefore, wrapping the DecoderFallbackException around an InvalidOperationException.
+                throw ThrowHelper.GetInvalidOperationException_ReadInvalidUTF8(dfe);
+            }
+            catch (ArgumentException)
+            {
+                // Destination buffer was too small; clear it up since the encoder might have not.
+                destination.Clear();
+                written = 0;
+                return false;
+            }
+        }
+
         public static int TranscodeHelper(ReadOnlySpan<byte> utf8Unescaped, Span<char> destination)
         {
+            // While this could simplified and rewritten in terms of TryTranscode()
+            //
+            // ****
+            // if (!TryTranscode(utf8Unescaped, destination, out int written))
+            // {
+            //    ThrowHelper.ThrowArgumentException_DestinationTooShort();
+            // }
+            //
+            // return written;
+            // ****
+            //
+            // we want to avoid introducing an extra indirection in the exception handling.
+
             try
             {
 #if NET

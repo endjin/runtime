@@ -12,12 +12,12 @@ namespace System.Runtime.InteropServices
         public static System.ReadOnlySpan<byte> GetRawUtf8Value(System.Text.Json.JsonElement element) { throw null; }
         public static void GetTranscodingDetailsForRawUtf8PropertyName(System.Text.Json.JsonElement property, out int indexOfFirstEscapedSequence, out int minimumTranscodedBufferSize) { throw null; }
         public static void GetTranscodingDetailsForRawUtf8Value(System.Text.Json.JsonElement element, out int indexOfFirstEscapedSequence, out int minimumTranscodedBufferSize) { throw null; }
+        public static bool RawUtf8PropertyNameRequiresUnescaping(System.Text.Json.JsonProperty property, out int indexOfFirstEscapedSequence, out int minimumUnescapedBufferSize) { throw null; }
+        public static bool RawUtf8ValueRequiresUnescaping(System.Text.Json.JsonElement element, out int indexOfFirstEscapedSequence, out int minimumUnescapedBufferSize) { throw null; }
         public static bool TryTranscodeRawUtf8PropertyName(System.Text.Json.JsonElement element, Span<char> transcodedValue, int indexOfFirstEscapedSequence, out int written) { throw null; }
         public static bool TryTranscodeRawUtf8Value(System.Text.Json.JsonElement element, Span<char> transcodedValue, int indexOfFirstEscapedSequence, out int written) { throw null; }
         public static bool TryUnescapeRawUtf8PropertyName(System.Text.Json.JsonProperty property, Span<byte> unescapedValue, int indexOfFirstEscapedSequence, out int written) { throw null; }
         public static bool TryUnescapeRawUtf8Value(System.Text.Json.JsonElement element, Span<byte> unescapedValue, int indexOfFirstEscapedSequence, out int written) { throw null; }
-        public static bool Utf8PropertyNameRequiresUnescaping(System.Text.Json.JsonProperty property, out int indexOfFirstEscapedSequence, out int minimumUnescapedBufferSize) { throw null; }
-        public static bool Utf8ValueRequiresUnescaping(System.Text.Json.JsonElement element, out int indexOfFirstEscapedSequence, out int minimumUnescapedBufferSize) { throw null; }
     }
 }
 namespace System.Text.Json
