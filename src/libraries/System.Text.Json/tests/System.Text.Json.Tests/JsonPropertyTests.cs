@@ -134,6 +134,81 @@ namespace System.Text.Json.Tests
         }
 
         [Theory]
+        [InlineData("conne\\u0063tionId", 5)]
+        [InlineData("My name is \\\"Ahson\\\"", 11)]
+        public static void JsonMarshal_Utf8PropertyNameRequiresUnescaping_True(string propertyName, int expectedIndex)
+        {
+            string jsonString = $"{{ \"{propertyName}\" : \"itsValue\" }}";
+            using (JsonDocument doc = JsonDocument.Parse(jsonString))
+            {
+                JsonElement jElement = doc.RootElement;
+                JsonProperty property = jElement.EnumerateObject().First();
+                bool success = JsonMarshal.RawUtf8PropertyNameRequiresUnescaping(property, out int actualIndex, out int bufferSize);
+                Assert.True(success);
+                Assert.Equal(expectedIndex, actualIndex);
+                Assert.Equal(propertyName.Length, bufferSize);
+            }
+        }
+
+        [Theory]
+        [InlineData("connectionId", -1)]
+        [InlineData("123", -1)]
+        public static void JsonMarshal_Utf8PropertyNameRequiresUnescaping_False(string propertyName, int expectedIndex)
+        {
+            string jsonString = $"{{ \"{propertyName}\" : \"itsValue\" }}";
+            using (JsonDocument doc = JsonDocument.Parse(jsonString))
+            {
+                JsonElement jElement = doc.RootElement;
+                JsonProperty property = jElement.EnumerateObject().First();
+                bool success = JsonMarshal.RawUtf8PropertyNameRequiresUnescaping(property, out int actualIndex, out int bufferSize);
+                Assert.False(success);
+                Assert.Equal(expectedIndex, actualIndex);
+                Assert.Equal(0, bufferSize);
+            }
+        }
+
+        [Fact]
+        public static void JsonMarshal_Utf8PropertyNameRequiresUnescaping_InvalidInstance_Throws()
+        {
+            string ErrorMessage = new InvalidOperationException().Message;
+            JsonProperty prop = default;
+            AssertExtensions.Throws<InvalidOperationException>(() => JsonMarshal.RawUtf8PropertyNameRequiresUnescaping(prop, out int idx, out int sz), ErrorMessage);
+        }
+
+        [Theory]
+        [InlineData("conne\\u0063tionId", "connectionId")]
+        [InlineData("My name is \\\"Ahson\\\"", "My name is \"Ahson\"")]
+        public static void JsonMarshal_TryUnescapeRawUtf8PropertyName_UseGoodValues_True(string propertyName, string otherText)
+        {
+            string jsonString = $"{{ \"{propertyName}\" : \"itsValue\" }}";
+            using (JsonDocument doc = JsonDocument.Parse(jsonString))
+            {
+                JsonElement jElement = doc.RootElement;
+                JsonProperty property = jElement.EnumerateObject().First();
+                byte[] expectedGetBytes = Encoding.UTF8.GetBytes(otherText);
+                Assert.True(JsonMarshal.RawUtf8PropertyNameRequiresUnescaping(property, out int idx, out int bufSize));
+                Span<byte> unescapedValue = new byte[bufSize]; // In production usage you would stackalloc/rent this buffer
+                Assert.True(JsonMarshal.TryUnescapeRawUtf8PropertyName(property, unescapedValue, idx, out int written));
+                Assert.True(unescapedValue.Slice(0, written).SequenceEqual(expectedGetBytes));
+            }
+        }
+
+        [Theory]
+        [InlineData("connectionId")]
+        public static void JsonMarshal_TryUnescapeRawUtf8PropertyName_UseUnescapedValues_True(string propertyName)
+        {
+            string jsonString = $"{{ \"{propertyName}\" : \"itsValue\" }}";
+            using (JsonDocument doc = JsonDocument.Parse(jsonString))
+            {
+                JsonElement jElement = doc.RootElement;
+                JsonProperty property = jElement.EnumerateObject().First();
+                Span<byte> unescapedValue = new byte[propertyName.Length]; // In production usage you would stackalloc/rent this buffer
+                Assert.False(JsonMarshal.TryUnescapeRawUtf8PropertyName(property, unescapedValue, -1, out int written));
+                Assert.Equal(0, written);
+            }
+        }
+
+        [Theory]
         [InlineData("conne\\u0063tionId", "conne\\u0063tionId")]
         [InlineData("connectionId", "connectionId")]
         [InlineData("123", "123")]
